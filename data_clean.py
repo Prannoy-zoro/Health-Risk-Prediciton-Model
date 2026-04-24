@@ -1,47 +1,30 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt 
 from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
 
-
-
-df = pd.read_csv("ObesityDataSet_raw_and_data_sinthetic.csv")
-df.plot(x='Age',y='Height',style='o')
-plt.show()
-
-print(df.info())
-
-print(df.describe())
-
-le_dict ={}
-for col in df.select_dtypes(include='object'):
-    le = LabelEncoder()
-    df[col] = le.fit_transform(df[col])
-    le_dict[col] = le
-df = df.dropna() # Drop rows with missing values
-print(df.head())
-
-df["BMI"] = df["Weight"] / (df["Height"] ** 2)
-print(df.head())
-
-
+# Load dataset
 df = pd.read_csv("ObesityDataSet_raw_and_data_sinthetic.csv")
 print("Initial shape:", df.shape)
 
-# Handle missing values
+# Check basic info
+print(df.info())
+print(df.describe())
+
+# Separate numeric and categorical columns
 num_cols = df.select_dtypes(include=np.number).columns
 cat_cols = df.select_dtypes(include='object').columns
 
+# Fill missing values (safety step)
 df[num_cols] = df[num_cols].fillna(df[num_cols].mean())
-
 for col in cat_cols:
     df[col] = df[col].fillna(df[col].mode()[0])
 
-# Remove duplicates
+# Remove duplicate rows
 df = df.drop_duplicates()
 print("After duplicates:", df.shape)
 
-# Remove outliers (Age, Height, Weight)
+# Remove outliers using IQR (only key columns)
 outlier_cols = ["Age", "Height", "Weight"]
 
 Q1 = df[outlier_cols].quantile(0.25)
@@ -53,22 +36,25 @@ df = df[~((df[outlier_cols] < (Q1 - 1.5 * IQR)) |
 
 print("After outliers:", df.shape)
 
-# Create BMI
+# Create BMI feature (important health indicator)
 df["BMI"] = df["Weight"] / (df["Height"] ** 2)
 
-# Encode categorical columns
+# Encode categorical columns to numeric
 label_encoders = {}
-
 for col in cat_cols:
     le = LabelEncoder()
     df[col] = le.fit_transform(df[col])
     label_encoders[col] = le
 
+# Simple visualization (Age vs Height)
+df.plot(x='Age', y='Height', style='o')
+plt.title("Age vs Height")
+plt.show()
+
 # Final check
 print(df.info())
 print(df.head())
 
-# Save cleaned data
-df.to_csv("cleaned_obesity_data.csv", index=False)
-
+# Save cleaned dataset
+df.to_csv("cleaned.csv", index=False)
 print("✅ Cleaned data saved")
