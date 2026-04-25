@@ -4,30 +4,31 @@ import pandas as pd
 import joblib
 import plotly.express as px
 import plotly.graph_objects as go
-
-# Load model and data
+#20240802468
 model = joblib.load("model.pkl")
 features = joblib.load("features.pkl")
 df = pd.read_csv("cleaned.csv")
 
 st.set_page_config(page_title="Health Analyzer", layout="wide")
+st.markdown(
+    "<h1 style='text-align: center;'>Health and Obesity Analyzer</h1>",
+    unsafe_allow_html=True
+)
 
-st.title("💪 Health & Obesity Analyzer")
-
-# Sidebar inputs
 st.sidebar.header("Enter Your Details")
-
+#20240802468
 age = st.sidebar.number_input("Age", 10, 80, 25)
 height = st.sidebar.number_input("Height (cm)", 130, 220, 170)
 weight = st.sidebar.number_input("Weight (kg)", 30.0, 150.0, 70.0)
+
+gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
 
 faf = st.sidebar.number_input("Activity (0-6)", 0, 6, 2)
 ch2o = st.sidebar.number_input("Water Intake (1-8)", 1, 8, 3)
 tue = st.sidebar.number_input("Screen Time (0-12)", 0, 12, 2)
 
 analyze = st.sidebar.button("Analyze")
-
-# BMI category function
+#20240802468
 def bmi_category(bmi):
     if bmi < 18.5:
         return "Underweight"
@@ -37,26 +38,41 @@ def bmi_category(bmi):
         return "Overweight"
     else:
         return "Obese"
-
-# -----------------------------
-# BEFORE ANALYZE
-# -----------------------------
+#20240802468
 if not analyze:
 
     st.subheader("Dataset Overview")
 
-    fig1 = px.histogram(df, x="BMI", title="BMI Distribution")
-    st.plotly_chart(fig1, use_container_width=True)
+    c1, c2, c3 = st.columns(3)
 
-    fig2 = px.scatter(df, x="Age", y="Weight", title="Age vs Weight")
-    st.plotly_chart(fig2, use_container_width=True)
+    with c1:
+        fig = px.histogram(df, x="BMI", nbins=30, title="BMI Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig3 = px.histogram(df, x="NObeyesdad", title="Obesity Levels")
-    st.plotly_chart(fig3, use_container_width=True)
+    with c2:
+        fig = px.histogram(df, x="Age", nbins=30, title="Age Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
-# -----------------------------
-# AFTER ANALYZE
-# -----------------------------
+    with c3:
+        fig = px.histogram(df, x="Weight", nbins=30, title="Weight Distribution")
+        st.plotly_chart(fig, use_container_width=True)
+
+    c4, c5 = st.columns(2)
+
+    with c4:
+        fig = px.scatter(df, x="Age", y="BMI", title="Age vs BMI", opacity=0.6)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with c5:
+        fig = px.scatter(df, x="Weight", y="BMI", title="Weight vs BMI", opacity=0.6)
+        st.plotly_chart(fig, use_container_width=True)
+
+    obesity_counts = df["NObeyesdad"].value_counts().reset_index()
+    obesity_counts.columns = ["Category", "Count"]
+
+    fig_pie = px.pie(obesity_counts, names="Category", values="Count", title="Obesity Level Distribution")
+    st.plotly_chart(fig_pie, use_container_width=True)
+#20240802468
 if analyze:
 
     bmi = weight / ((height / 100) ** 2)
@@ -64,10 +80,7 @@ if analyze:
 
     col1, col2 = st.columns(2)
 
-    # BMI Gauge
     with col1:
-        st.subheader("Your BMI")
-
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=bmi,
@@ -82,13 +95,19 @@ if analyze:
                 ],
             }
         ))
-
         st.plotly_chart(fig, use_container_width=True)
-        st.write(f"Category: **{category}**")
+        st.write(f"Category: {category}")
 
-    # Prediction
     with col2:
-        st.subheader("Prediction")
+        mapping = {
+            0: "Insufficient Weight",
+            1: "Normal Weight",
+            2: "Overweight Level I",
+            3: "Overweight Level II",
+            4: "Obesity Type I",
+            5: "Obesity Type II",
+            6: "Obesity Type III"
+        }
 
         input_dict = {feature: 0 for feature in features}
         input_dict["Age"] = age
@@ -99,9 +118,12 @@ if analyze:
         input_dict["TUE"] = tue
 
         input_data = np.array([list(input_dict.values())])
-        pred = model.predict(input_data)[0]
 
-        st.write(f"Obesity Level: **{pred}**")
+        pred_encoded = model.predict(input_data)[0]
+        pred = mapping.get(int(pred_encoded), "Unknown")
+
+        st.subheader("Prediction")
+        st.write(f"Obesity Level: {pred}")
 
         if bmi < 18.5:
             st.warning("Increase calorie intake.")
@@ -112,8 +134,47 @@ if analyze:
         else:
             st.error("High risk. Take care.")
 
-    # Comparison
-    st.subheader("Comparison with Dataset")
+    st.subheader("Calorie Recommendation")
+
+    if gender == "Male":
+        bmr = 10 * weight + 6.25 * height - 5 * age + 5
+    else:
+        bmr = 10 * weight + 6.25 * height - 5 * age - 161
+
+    if faf <= 1:
+        activity_factor = 1.2
+    elif faf <= 2:
+        activity_factor = 1.375
+    elif faf <= 4:
+        activity_factor = 1.55
+    elif faf <= 5:
+        activity_factor = 1.725
+    else:
+        activity_factor = 1.9
+#20240802468
+    maintenance = bmr * activity_factor
+    deficit = maintenance * 0.8
+    surplus = maintenance * 1.15
+
+    c11, c12, c13 = st.columns(3)
+
+    with c11:
+        st.metric("Maintenance Calories", f"{int(maintenance)} kcal")
+
+    with c12:
+        st.metric("Fat Loss (Deficit)", f"{int(deficit)} kcal")
+
+    with c13:
+        st.metric("Muscle Gain (Surplus)", f"{int(surplus)} kcal")
+
+    if bmi < 18.5:
+        st.info("You need a calorie surplus to gain weight.")
+    elif bmi < 25:
+        st.info("Maintain your current calorie intake.")
+    else:
+        st.info("A calorie deficit will help reduce weight.")
+#20240802468
+    st.subheader("Comparison")
 
     avg_bmi = df["BMI"].mean()
 
@@ -125,21 +186,34 @@ if analyze:
     fig_comp = px.bar(comp_df, x="Type", y="Value", title="BMI Comparison")
     st.plotly_chart(fig_comp, use_container_width=True)
 
-    # Insights
-    st.subheader("Dataset Insights")
+    st.subheader("Insights")
+#20240802468
+    c6, c7, c8 = st.columns(3)
 
-    st.write(f"Average BMI: {avg_bmi:.2f}")
-    st.write(f"Most Frequent BMI: {df['BMI'].mode()[0]:.2f}")
-    st.write(f"Least Frequent BMI: {df['BMI'].value_counts().idxmin():.2f}")
+    with c6:
+        st.metric("Average BMI", f"{avg_bmi:.2f}")
 
-    # Expander for visuals
-    with st.expander("📊 View Dataset Analysis"):
+    with c7:
+        st.metric("Most Frequent BMI", f"{df['BMI'].mode()[0]:.2f}")
 
-        fig1 = px.histogram(df, x="BMI", title="BMI Distribution")
-        st.plotly_chart(fig1, use_container_width=True)
+    with c8:
+        st.metric("Least Frequent BMI", f"{df['BMI'].value_counts().idxmin():.2f}")
 
-        fig2 = px.scatter(df, x="Age", y="Weight", title="Age vs Weight")
-        st.plotly_chart(fig2, use_container_width=True)
+    with st.expander("Dataset Analysis"):
+#20240802468
+        c9, c10 = st.columns(2)
 
-        fig3 = px.histogram(df, x="NObeyesdad", title="Obesity Levels")
-        st.plotly_chart(fig3, use_container_width=True)
+        with c9:
+            fig = px.histogram(df, x="BMI", title="BMI Distribution")
+            st.plotly_chart(fig, use_container_width=True)
+
+        with c10:
+            fig = px.scatter(df, x="Age", y="Weight", title="Age vs Weight")
+            st.plotly_chart(fig, use_container_width=True)
+
+        obesity_counts = df["NObeyesdad"].value_counts().reset_index()
+        obesity_counts.columns = ["Category", "Count"]
+
+        fig_pie = px.pie(obesity_counts, names="Category", values="Count", title="Obesity Distribution")
+        st.plotly_chart(fig_pie, use_container_width=True)
+        #20240802468

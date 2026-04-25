@@ -1,37 +1,23 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score
 import joblib
-
-# Load cleaned dataset
+#20240802468
 df = pd.read_csv("cleaned.csv")
 
-# Separate features and target
-X = df.drop("NObeyesdad", axis=1)   # input features
-y = df["NObeyesdad"]                # target variable
+X = df.drop("NObeyesdad", axis=1)
+y = df["NObeyesdad"]
 
-# Save feature names (used later in Streamlit)
-joblib.dump(X.columns.tolist(), "features.pkl")
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
-# Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-# Create and train model
 model = RandomForestClassifier()
 model.fit(X_train, y_train)
+#20240802468
+preds = model.predict(X_test)
+acc = accuracy_score(y_test, preds)
 
-# Make predictions
-y_pred = model.predict(X_test)
-
-# Evaluate model performance
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("\nClassification Report:\n")
-print(classification_report(y_test, y_pred))
-
-# Save trained model
+print("Accuracy:", acc)
+#20240802468
 joblib.dump(model, "model.pkl")
-
-print("✅ Model trained and saved")
+joblib.dump(X.columns.tolist(), "features.pkl")

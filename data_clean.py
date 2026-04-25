@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
-
+#20240802468
 # Load dataset
 df = pd.read_csv("ObesityDataSet_raw_and_data_sinthetic.csv")
 print("Initial shape:", df.shape)
@@ -10,7 +10,7 @@ print("Initial shape:", df.shape)
 # Check basic info
 print(df.info())
 print(df.describe())
-
+#20240802468
 # Separate numeric and categorical columns
 num_cols = df.select_dtypes(include=np.number).columns
 cat_cols = df.select_dtypes(include='object').columns
@@ -30,10 +30,10 @@ outlier_cols = ["Age", "Height", "Weight"]
 Q1 = df[outlier_cols].quantile(0.25)
 Q3 = df[outlier_cols].quantile(0.75)
 IQR = Q3 - Q1
-
+#20240802468
 df = df[~((df[outlier_cols] < (Q1 - 1.5 * IQR)) |
           (df[outlier_cols] > (Q3 + 1.5 * IQR))).any(axis=1)]
-
+#20240802468
 print("After outliers:", df.shape)
 
 # Create BMI feature (important health indicator)
@@ -51,10 +51,20 @@ df.plot(x='Age', y='Height', style='o')
 plt.title("Age vs Height")
 plt.show()
 
+#20240802468
+label_encoders = {}
+
+for col in df.select_dtypes(include='object').columns:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+joblib.dump(label_encoders, "encoders.pkl")
+
 # Final check
 print(df.info())
 print(df.head())
-
+#20240802468
 # Save cleaned dataset
 df.to_csv("cleaned.csv", index=False)
 print("✅ Cleaned data saved")
