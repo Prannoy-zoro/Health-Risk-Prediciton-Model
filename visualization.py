@@ -71,6 +71,11 @@ if not analyze:
     obesity_counts.columns = ["Category", "Count"]
 
     fig_pie = px.pie(obesity_counts, names="Category", values="Count", title="Obesity Level Distribution")
+    model = joblib.load("model.pkl")
+    accuracy = joblib.load("accuracy.pkl")
+
+    st.subheader("📊 Model Performance")
+    st.write(f"Accuracy: {accuracy * 100:.2f}%")
     st.plotly_chart(fig_pie, use_container_width=True)
 #20240802468
 if analyze:
