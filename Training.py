@@ -21,3 +21,4 @@ print("Accuracy:", acc)
 #20240802468
 joblib.dump(model, "model.pkl")
 joblib.dump(X.columns.tolist(), "features.pkl")
+joblib.dump(acc,"accuracy.pkl")
