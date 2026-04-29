@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 model = joblib.load("model.pkl")
 features = joblib.load("features.pkl")
 df = pd.read_csv("cleaned.csv")
+accuracy = joblib.load("accuracy.pkl")
 
 st.set_page_config(page_title="Health Analyzer", layout="wide")
 st.markdown(
@@ -41,7 +42,10 @@ def bmi_category(bmi):
 #20240802468
 if not analyze:
 
-    st.subheader("Dataset Overview")
+    st.subheader("Dataset Overview:")
+    st.subheader("Model Performance")
+    st.write(f"Accuracy: {accuracy * 100:.2f}%")
+    
 
     c1, c2, c3 = st.columns(3)
 
@@ -49,9 +53,21 @@ if not analyze:
         fig = px.histogram(df, x="BMI", nbins=30, title="BMI Distribution")
         st.plotly_chart(fig, use_container_width=True)
 
+        # ✅ FIX: REMOVE invalid prediction block here (no input_dict available)
+
     with c2:
         fig = px.histogram(df, x="Age", nbins=30, title="Age Distribution")
         st.plotly_chart(fig, use_container_width=True)
+
+        # ✅ Feature importance (valid here)
+        importance = model.feature_importances_
+        importance_df = pd.DataFrame({
+            "Feature": features,
+            "Importance": importance
+        }).sort_values(by="Importance", ascending=False)
+
+        fig_importance = px.bar(importance_df, x="Feature", y="Importance", title="Feature Importance")
+        st.plotly_chart(fig_importance, use_container_width=True)
 
     with c3:
         fig = px.histogram(df, x="Weight", nbins=30, title="Weight Distribution")
@@ -67,16 +83,18 @@ if not analyze:
         fig = px.scatter(df, x="Weight", y="BMI", title="Weight vs BMI", opacity=0.6)
         st.plotly_chart(fig, use_container_width=True)
 
-    obesity_counts = df["NObeyesdad"].value_counts().reset_index()
+    
+    obesity_counts = df["NObeyesdad"].value_counts().sort_index().reset_index()
     obesity_counts.columns = ["Category", "Count"]
+    
+
 
     fig_pie = px.pie(obesity_counts, names="Category", values="Count", title="Obesity Level Distribution")
-    model = joblib.load("model.pkl")
-    accuracy = joblib.load("accuracy.pkl")
-
-    st.subheader("📊 Model Performance")
-    st.write(f"Accuracy: {accuracy * 100:.2f}%")
     st.plotly_chart(fig_pie, use_container_width=True)
+   
+
+    
+
 #20240802468
 if analyze:
 
@@ -103,6 +121,7 @@ if analyze:
         st.plotly_chart(fig, use_container_width=True)
         st.write(f"Category: {category}")
 
+
     with col2:
         mapping = {
             0: "Insufficient Weight",
@@ -114,21 +133,38 @@ if analyze:
             6: "Obesity Type III"
         }
 
+        #  FIX: Proper input creation
         input_dict = {feature: 0 for feature in features}
+
         input_dict["Age"] = age
-        input_dict["Height"] = height
+        input_dict["Height"] = height / 100   # ✅ FIX (cm → meters)
         input_dict["Weight"] = weight
         input_dict["FAF"] = faf
         input_dict["CH2O"] = ch2o
         input_dict["TUE"] = tue
+        input_dict["Gender"] = 1 if gender == "Male" else 0
 
-        input_data = np.array([list(input_dict.values())])
+        #  FIX: Fill missing features (basic defaults)
+        input_dict["CALC"] = 0
+        input_dict["FAVC"] = 1
+        input_dict["CAEC"] = 2
+        input_dict["MTRANS"] = 0
 
-        pred_encoded = model.predict(input_data)[0]
+        #  FIX: Use DataFrame instead of numpy
+        input_df = pd.DataFrame([input_dict])
+        input_df = input_df[features]
+
+        pred_encoded = model.predict(input_df)[0]
+
+        #  FIX: Confidence added correctly
+        probs = model.predict_proba(input_df)
+        confidence = max(probs[0]) * 100
+
         pred = mapping.get(int(pred_encoded), "Unknown")
 
         st.subheader("Prediction")
         st.write(f"Obesity Level: {pred}")
+        st.metric("Prediction Confidence", f"{confidence:.2f}%")
 
         if bmi < 18.5:
             st.warning("Increase calorie intake.")
@@ -190,6 +226,7 @@ if analyze:
 
     fig_comp = px.bar(comp_df, x="Type", y="Value", title="BMI Comparison")
     st.plotly_chart(fig_comp, use_container_width=True)
+    
 
     st.subheader("Insights")
 #20240802468
@@ -219,6 +256,8 @@ if analyze:
         obesity_counts = df["NObeyesdad"].value_counts().reset_index()
         obesity_counts.columns = ["Category", "Count"]
 
+
         fig_pie = px.pie(obesity_counts, names="Category", values="Count", title="Obesity Distribution")
         st.plotly_chart(fig_pie, use_container_width=True)
+        
         #20240802468
